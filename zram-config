@@ -245,6 +245,7 @@ disableZephemeral () {
 ZSHARE=/usr/local/share/zram-config
 ZLOG=${ZSHARE}/log/zram-config.log
 ZDIR=/opt/zram
+fZSyncSemaphore=${ZDIR}/zdosync
 if grep -q init=/bin/ro-root.sh /boot/cmdline.txt;then
 ZEPHEMERAL=true
 else
@@ -291,10 +292,12 @@ case "$1" in
 
 					case "$1" in
 						swap)
-							PRIORITY=$5
-							PAGE_CLUSTER=$6
-							SWAPPINESS=$7
-							createZswap
+							if [ ! -f "$fZSyncSemaphore" ] ; then 
+								PRIORITY=$5
+								PAGE_CLUSTER=$6
+								SWAPPINESS=$7
+								createZswap
+							fi
 							;;
 						dir)
 							TARGET_DIR=$5
@@ -315,6 +318,7 @@ case "$1" in
 					;;
 			esac
 		done < "$file"
+		[ -f "$fZSyncSemaphore" ] && rm -fv "$fZSyncSemaphore" >>${ZLOG}
 		if [ "$ZTAB_EMPTY" = true ] ; then
 			echo '/etc/ztab is empty and needs to be configured' >>${ZLOG}
 			exit 1
@@ -340,10 +344,12 @@ case "$1" in
 					echo "ztab remove $1 $2 $3 $4" >>${ZLOG}
 					case "$1" in
 						swap)
-							ZTYPE=$1
-							ZRAM_DEV=$2
-							LABEL=$3
-							removeZswap
+							if [ ! -f "$fZSyncSemaphore" ] ; then
+								ZTYPE=$1
+								ZRAM_DEV=$2
+								LABEL=$3
+								removeZswap
+							fi
 							;;
 						dir)
 							ZTYPE=$1
@@ -367,6 +373,7 @@ case "$1" in
 					;;
 			esac
 		done < "$file"
+		[ -f "$fZSyncSemaphore" ] && rm -fv "$fZSyncSemaphore" >>${ZLOG}
 		rm -fv ${ZSHARE}/zram-device-list.rev ${ZSHARE}/zram-device-list >>${ZLOG}
 		;;
 
@@ -404,6 +411,11 @@ case "$1" in
 		rm -fv ${ZSHARE}/zram-device-list.rev >>${ZLOG}
 		;;
 		
+	prep-sync)
+		echo "zram-config prep-sync $(date +%Y-%m-%d-%H:%M:%S)" >>${ZLOG}
+		touch "$fZSyncSemaphore" >>${ZLOG} 2>&1
+		;;
+		
 	enable-ephemeral)
 		enableZephemeral
 		;;
@@ -413,7 +425,7 @@ case "$1" in
 		;;
 		
 	*)
-		echo "Usage: zram-config {start|stop|enable-ephemeral|disable-ephemeral}" >&2
+		echo "Usage: zram-config {start|stop|prep-sync|enable-ephemeral|disable-ephemeral}" >&2
 		exit 1
 		;;
 esac

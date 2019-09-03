@@ -123,7 +123,8 @@ syncOverlay () {
 	sed -i '$d' *.sh >>${ZLOG} 2>&1 || return 1
 	sh -x *.sh  >>${ZLOG} 2>&1 || return 1
 	rm -v *.sh  >>${ZLOG} 2>&1 || return 1
-	sync & sync
+	sync
+	sync
 	mount -o remount $TARGET_DIR
 }
 
